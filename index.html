@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BLOCK OPS</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+<canvas id="renderCanvas"></canvas>
+
+<div id="lobbyUI">
+  <header>
+    <div class="logo">BLOCK<span>OPS</span></div>
+    <div class="top-links">
+      <span class="active">LOBBY</span>
+      <span>SEASON 01</span>
+    </div>
+    <div class="profile">
+      <div class="level">01</div>
+      <div><b id="profileName">PLAYER</b><small>LEVEL 1</small></div>
+    </div>
+  </header>
+
+  <nav>
+    <button class="nav active" data-page="play">PLAY</button>
+    <button class="nav" data-page="locker">LOCKER</button>
+    <button class="nav" data-page="friends">FRIENDS</button>
+    <button class="nav" data-page="settings">SETTINGS</button>
+  </nav>
+
+  <main>
+    <section class="left-panel">
+      <div class="eyebrow">BLOCK OPS // MULTIPLAYER</div>
+      <h1 id="pageTitle">READY<br>FOR BATTLE?</h1>
+      <p id="pageDescription">JOIN YOUR PARTY AND ENTER THE ARENA.</p>
+
+      <div id="playOptions">
+        <button id="playButton" class="play-button">PLAY NOW <span>➜</span></button>
+        <div class="mode">GAME MODE <b>FREE FOR ALL</b></div>
+      </div>
+
+      <div id="otherPage" hidden>
+        <div id="pageContent"></div>
+      </div>
+    </section>
+
+    <section class="right-panel">
+      <div class="panel-heading">
+        <div><small>YOUR SQUAD</small><h2>PARTY</h2></div>
+        <span class="online">● ONLINE</span>
+      </div>
+
+      <div id="partyMembers">
+        <div class="party-member">
+          <div class="member-icon">?</div>
+          <div><b>YOU</b><small>NOT IN A PARTY</small></div>
+        </div>
+      </div>
+
+      <div class="party-code">
+        <small>PARTY CODE</small>
+        <div id="partyCode">------</div>
+        <button id="copyCode">COPY CODE</button>
+      </div>
+
+      <div class="party-actions">
+        <input id="username" maxlength="16" placeholder="PLAYER NAME" value="Player">
+        <button id="createParty">CREATE PARTY</button>
+        <input id="joinCode" maxlength="5" placeholder="ENTER PARTY CODE">
+        <button id="joinParty">JOIN PARTY</button>
+        <p id="error"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div>BLOCK OPS <span>V1.0</span></div>
+    <div id="status">CONNECTING...</div>
+    <div>WASD // MOVE</div>
+  </footer>
+</div>
+
+<div id="matchUI" hidden>
+  <div class="match-top">
+    <b>BLOCK OPS</b>
+    <span id="matchParty"></span>
+  </div>
+  <div class="crosshair">+</div>
+  <div class="match-bottom">
+    <span>HEALTH <b id="health">100</b></span>
+    <span>KILLS <b id="kills">0</b></span>
+    <span>DEATHS <b id="deaths">0</b></span>
+  </div>
+  <div id="captureMessage">CLICK TO CAPTURE MOUSE</div>
+  <button id="returnLobby">RETURN TO LOBBY</button>
+</div>
+
+<div id="nameModal">
+  <div class="modal">
+    <div class="logo">BLOCK<span>OPS</span></div>
+    <h2>WELCOME SOLDIER</h2>
+    <p>ENTER YOUR PLAYER NAME</p>
+    <input id="firstName" maxlength="16" placeholder="PLAYER NAME" value="Player">
+    <button id="enterGame">ENTER LOBBY</button>
+  </div>
+</div>
+
+<script src="client.js"></script>
+</body>
+</html>
