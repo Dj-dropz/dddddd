@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: block-ops
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start

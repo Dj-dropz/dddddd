@@ -1,0 +1,193 @@
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const crypto = require("crypto");
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+app.use(express.static("public"));
+
+const lobbies = new Map();
+const cooldowns = new Map();
+
+function code() {
+  return crypto.randomBytes(4).toString("hex").slice(0, 5).toUpperCase();
+}
+
+function publicLobby(room) {
+  return {
+    code: room.code,
+    host: room.host,
+    players: [...room.players.values()]
+  };
+}
+
+function updateLobby(room) {
+  io.to(room.code).emit("lobby:update", publicLobby(room));
+}
+
+function removePlayer(socket) {
+  const room = [...lobbies.values()].find(r => r.players.has(socket.id));
+  if (!room) return;
+
+  room.players.delete(socket.id);
+  socket.leave(room.code);
+
+  if (!room.players.size) {
+    lobbies.delete(room.code);
+    return;
+  }
+
+  if (room.host === socket.id) {
+    room.host = room.players.keys().next().value;
+  }
+
+  updateLobby(room);
+}
+
+io.on("connection", socket => {
+
+  socket.on("lobby:create", name => {
+    removePlayer(socket);
+
+    let id = code();
+    while (lobbies.has(id)) id = code();
+
+    const player = {
+      id: socket.id,
+      name: String(name || "Player").slice(0, 16),
+      x: 0, y: 0, z: 0,
+      yaw: 0,
+      hp: 100,
+      kills: 0,
+      deaths: 0
+    };
+
+    const room = {
+      code: id,
+      host: socket.id,
+      players: new Map([[socket.id, player]]),
+      started: false
+    };
+
+    lobbies.set(id, room);
+    socket.join(id);
+    socket.emit("lobby:joined", publicLobby(room));
+    updateLobby(room);
+  });
+
+  socket.on("lobby:join", ({code: id, name}) => {
+    removePlayer(socket);
+
+    const room = lobbies.get(String(id || "").toUpperCase());
+
+    if (!room) {
+      socket.emit("error:message", "Party code not found.");
+      return;
+    }
+
+    if (room.players.size >= 12) {
+      socket.emit("error:message", "Party is full.");
+      return;
+    }
+
+    const player = {
+      id: socket.id,
+      name: String(name || "Player").slice(0, 16),
+      x: Math.random() * 5,
+      y: 0,
+      z: Math.random() * 5,
+      yaw: 0,
+      hp: 100,
+      kills: 0,
+      deaths: 0
+    };
+
+    room.players.set(socket.id, player);
+    socket.join(room.code);
+    socket.emit("lobby:joined", publicLobby(room));
+    updateLobby(room);
+  });
+
+  socket.on("match:start", () => {
+    const room = [...lobbies.values()].find(r => r.players.has(socket.id));
+    if (!room || room.host !== socket.id) return;
+
+    room.started = true;
+    io.to(room.code).emit("match:started");
+  });
+
+  socket.on("player:move", data => {
+    const room = [...lobbies.values()].find(r => r.players.has(socket.id));
+    if (!room || !room.started) return;
+
+    const p = room.players.get(socket.id);
+
+    if (![data.x, data.z, data.yaw].every(Number.isFinite)) return;
+
+    p.x = Math.max(-45, Math.min(45, data.x));
+    p.y = Math.max(0, Math.min(4, Number(data.y) || 0));
+    p.z = Math.max(-45, Math.min(45, data.z));
+    p.yaw = data.yaw;
+    p.moving = Boolean(data.moving);
+
+    socket.to(room.code).emit("player:moved", p);
+  });
+
+  socket.on("player:tag", data => {
+    const room = [...lobbies.values()].find(r => r.players.has(socket.id));
+    if (!room || !room.started || !data) return;
+
+    const now = Date.now();
+    if (now - (cooldowns.get(socket.id) || 0) < 650) return;
+    cooldowns.set(socket.id, now);
+
+    const attacker = room.players.get(socket.id);
+    const target = room.players.get(data.target);
+
+    if (!target || target.id === attacker.id) return;
+
+    const dx = target.x - attacker.x;
+    const dz = target.z - attacker.z;
+    const distance = Math.hypot(dx, dz);
+
+    if (distance > 16) return;
+
+    const yaw = attacker.yaw;
+    const fx = -Math.sin(yaw);
+    const fz = -Math.cos(yaw);
+
+    const dot = dx * fx + dz * fz;
+    const cross = Math.abs(dx * fz - dz * fx);
+
+    if (dot < 0 || cross > 1.5) return;
+
+    target.hp -= 25;
+
+    if (target.hp <= 0) {
+      target.hp = 100;
+      target.x = Math.random() * 20 - 10;
+      target.z = Math.random() * 20 - 10;
+      target.deaths++;
+      attacker.kills++;
+    }
+
+    io.to(room.code).emit("player:stats", {
+      players: [...room.players.values()],
+      attacker: socket.id,
+      target: target.id
+    });
+  });
+
+  socket.on("disconnect", () => {
+    removePlayer(socket);
+    cooldowns.delete(socket.id);
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, "0.0.0.0", () => {
+  console.log("BLOCK OPS running on port " + PORT);
+});
